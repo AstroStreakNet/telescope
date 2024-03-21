@@ -1,10 +1,18 @@
 package astrometry
 
+import (
+	"bytes"
+	"encoding/json"
+	"hash"
+	"net/http"
+	"time"
+)
+
 // Constants
 
-const baseURL string = "http://nova.astrometry.net/api"
-const signInURL string = baseURL + "/login"
-const uploadURL string = baseURL + "/upload"
+const baseURL string = "https://nova.astrometry.net/api"
+const signInURL = baseURL + "/login"
+const uploadURL = baseURL + "/upload"
 
 // Abstractions
 
@@ -48,6 +56,7 @@ type KnownObject struct {
 	y        float32
 }
 
+// Results represents the results given back by the API, not including known object locations
 type Results struct {
 	status      string
 	tags        []string
@@ -56,22 +65,47 @@ type Results struct {
 	objects     []string
 }
 
+type Submission struct {
+	start  time.Time
+	finish time.Time
+	jobs   []string
+	user   string
+	images string
+}
+
 // API functions
 
 // signIn
 func signIn(apiKey string) (string, error) {
 
-	return "", nil
+	payload := []byte(`request-json={"apikey": "` + apiKey + `"}`)
+
+	var contentType = "application/x-www-form-urlencoded"
+
+	resp, postErr := http.Post(
+		signInURL, contentType, bytes.NewBuffer(payload),
+	)
+	if postErr != nil {
+		return "", postErr
+	}
+
+	var data map[string]interface{}
+	decodeErr := json.NewDecoder(resp.Body).Decode(&data)
+	if decodeErr != nil {
+		return "", decodeErr
+	}
+
+	return data["session"].(string), nil
 }
 
 // upload
-func upload(sessionKey, file string) {
-
+func upload(sessionKey, file string) (string, hash.Hash) {
+	return "", nil
 }
 
 // submissionStatus
-func submissionStatus(sessionKey, subID string) {
-
+func submissionStatus(sessionKey, subID string) Submission {
+	return Submission{}
 }
 
 // jobStatus
