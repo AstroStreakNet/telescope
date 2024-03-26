@@ -1,0 +1,15 @@
+{
+  "status": "success",
+  "machine_tags": ["NGC 3628", "M 66", "NGC 3627", "M 65", "NGC 3623"],
+  "calibration": {
+    "parity": 1.0,
+    "orientation": 105.74942079091929,
+    "pixscale": 1.0906710701159739,
+    "radius": 0.8106715896625917,
+    "ra": 169.96633791366915,
+    "dec": 13.221011585315143
+  },
+  "tags": ["NGC 3628", "M 66", "NGC 3627", "M 65", "NGC 3623"],
+  "original_filename": "Leo Triplet-1.jpg",
+  "objects_in_field": ["NGC 3628", "M 66", "NGC 3627", "M 65", "NGC 3623"]
+}

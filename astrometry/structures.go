@@ -15,9 +15,9 @@ type LoginResponse struct {
 
 // UploadResponse includes the submission id, which is vital for monitoring the submissions progress
 type UploadResponse struct {
-	Status string `json:"status,string"`
-	SubID  int    `json:"subid,integer"`
-	Hash   string `json:"hash,string"`
+	Status string `json:"status"`
+	SubID  int    `json:"subid"`
+	Hash   string `json:"hash"`
 }
 
 // SubmissionStatus is the API's response when querying a submission's progress
