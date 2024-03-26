@@ -66,7 +66,7 @@ func (c *Client) doTheStuff(request *http.Request, dataStructure interface{}) er
 	decodeErr := json.NewDecoder(checkBytes).Decode(&errorResponse)
 	if decodeErr != nil {
 		return decodeErr
-	} else if errorResponse.Status != "success" {
+	} else if errorResponse.Status == "error" {
 		return errors.New(fmt.Sprintf("error response from astrometry: %s", errorResponse.ErrorMessage))
 	}
 

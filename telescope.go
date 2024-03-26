@@ -3,21 +3,24 @@ package telescope
 // Data Preparation
 
 // Crop image into desired dimensions
-func Crop(image string, x, y, w, h float32) {
+func Crop(image string, x, y, w, h float32) error {
+	return nil
 }
 
-func CropAuto(image string) {
+func CropAuto(image string) error {
 	// TODO figure out how this would ever actually work
+	return nil
 }
 
-func CropFITS(imagePath string) {
+func CropFITS(imagePath string) error {
 	// TODO this will be very painful to do
+	return nil
 }
 
 // ConvertFITS is a function for taking a FITS file and outputting the data in a different image format, jpeg/png.
 // Takes path to FITS file, creates new file in jpeg/png format at designated output path
-func ConvertFITS(imagePath, outputPath string) {
-	return
+func ConvertFITS(imagePath, outputPath string) error {
+	return nil
 }
 
 // Data conversion/preparation
