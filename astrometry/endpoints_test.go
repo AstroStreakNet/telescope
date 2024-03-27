@@ -28,13 +28,10 @@ const (
 	knownObjectsFile  = "/astrometry/known_objects.json"
 	annotationsFile   = "/astrometry/annotations.json"
 	jobResultsFile    = "/astrometry/job_results.json"
+	fileToUpload      = "/astrometry/file_to_upload.txt"
 
 	subID = "12345"
 	jobID = "54321"
-
-	sessionKey = "api"
-
-	fileToUpload = ""
 )
 
 func TestLogin(t *testing.T) {
@@ -88,25 +85,25 @@ func TestUpload(t *testing.T) {
 
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
-		_, wErr := fmt.Fprint(w, util.GetTestDataString(uploadFile))
-		if wErr != nil {
+		_, err := fmt.Fprint(w, util.GetTestDataString(uploadFile))
+		if err != nil {
 			t.Fatal("test server response write failure")
 		}
 	})
 
 	// Send request to test server
-	response, respErr := client.upload(fileToUpload)
-	assert.Nil(t, respErr, assertNilRespMsg)
+	response, err := client.upload(util.GetTestFilePath(fileToUpload))
+	assert.Nil(t, err, assertNilRespMsg)
 
 	// Retrieve json to create a reference struct for comparison
 	var reference = UploadResponse{}
-	decodeErr := json.Unmarshal(util.GetTestData(uploadFile), &reference)
-	if decodeErr != nil {
-		t.Fatalf("testdata/struct failure: %s", decodeErr)
+	err = json.Unmarshal(util.GetTestData(uploadFile), &reference)
+	if err != nil {
+		t.Fatalf("testdata/struct failure: %s", err)
 	}
 
 	// Check if response and reference are equal
-	assert.EqualValues(t, response, &reference, assertEqualMsg)
+	assert.EqualValues(t, &reference, response, assertEqualMsg)
 }
 
 func TestUploadError(t *testing.T) {

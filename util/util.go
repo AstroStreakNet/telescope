@@ -23,3 +23,7 @@ func GetTestData(filePath string) []byte {
 	}
 	return data
 }
+
+func GetTestFilePath(filePath string) string {
+	return "../testdata" + filePath
+}

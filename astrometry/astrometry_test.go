@@ -26,6 +26,7 @@ func testSetupEndpointsError(endpoint string) func() {
 	mux = http.NewServeMux()
 	server = httptest.NewServer(mux)
 	client = NewClient(server.URL, "fakeKeyForAPI")
+	client.SessionKey = "fakeKeyForSession"
 
 	// Define endpoint handler on test server
 	mux.HandleFunc(endpoint, func(w http.ResponseWriter, r *http.Request) {

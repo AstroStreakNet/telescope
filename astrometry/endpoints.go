@@ -8,6 +8,8 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 )
 
 // Endpoint URLS
@@ -41,9 +43,9 @@ const (
 // and if not then decodes the data into a specified data structure
 func (c *Client) doTheStuff(request *http.Request, dataStructure interface{}) error {
 	// Send provided request
-	resp, respErr := c.httpClient.Do(request)
-	if respErr != nil {
-		return respErr
+	resp, err := c.httpClient.Do(request)
+	if err != nil {
+		return err
 	}
 
 	// If no error in sending request than defer close
@@ -51,9 +53,9 @@ func (c *Client) doTheStuff(request *http.Request, dataStructure interface{}) er
 
 	// Read bytes from response body
 	var respBytes bytes.Buffer
-	_, ioErr := io.Copy(&respBytes, resp.Body)
-	if ioErr != nil {
-		return ioErr
+	_, err = io.Copy(&respBytes, resp.Body)
+	if err != nil {
+		return err
 	}
 	// Create copy of bytes for error message detection.
 	checkBytes := bytes.NewBuffer(respBytes.Bytes())
@@ -63,17 +65,17 @@ func (c *Client) doTheStuff(request *http.Request, dataStructure interface{}) er
 	// The response body has to be checked to determine if an error has occurred.
 	// It is very annoying.
 	var errorResponse = ErrorResponse{}
-	decodeErr := json.NewDecoder(checkBytes).Decode(&errorResponse)
-	if decodeErr != nil {
-		return decodeErr
+	err = json.NewDecoder(checkBytes).Decode(&errorResponse)
+	if err != nil {
+		return err
 	} else if errorResponse.Status == "error" {
 		return errors.New(fmt.Sprintf("error response from astrometry: %s", errorResponse.ErrorMessage))
 	}
 
 	// Decode response into desired data structure
-	structureErr := json.NewDecoder(&respBytes).Decode(&dataStructure)
-	if structureErr != nil {
-		return structureErr
+	err = json.NewDecoder(&respBytes).Decode(&dataStructure)
+	if err != nil {
+		return err
 	}
 
 	// Return nothing if no errors have occurred throughout whole process
@@ -88,9 +90,9 @@ func (c *Client) login() (*LoginResponse, error) {
 	// Define arguments for request
 	arguments := []byte(fmt.Sprintf(loginR, c.apiKey))
 	// Define request structure
-	req, reqErr := http.NewRequest("POST", c.BaseURL+loginEP, bytes.NewBuffer(arguments))
-	if reqErr != nil {
-		return nil, reqErr
+	req, err := http.NewRequest("POST", c.BaseURL+loginEP, bytes.NewBuffer(arguments))
+	if err != nil {
+		return nil, err
 	}
 
 	// req.WithContext(ctx)
@@ -99,45 +101,93 @@ func (c *Client) login() (*LoginResponse, error) {
 
 	var response = LoginResponse{}
 	// Send request, decode data into LoginResponse structure
-	respErr := c.doTheStuff(req, &response)
-	if respErr != nil {
-		return nil, respErr
+	err = c.doTheStuff(req, &response)
+	if err != nil {
+		return nil, err
 	}
 
 	return &response, nil
 }
 
 // upload is a function for posting an image file to the Astrometry API
-func (c *Client) upload(file string) (*UploadResponse, error) {
+func (c *Client) upload(filePath string) (*UploadResponse, error) {
 
-	// TODO create multipart form request
+	// Open file to get data
+	fileData, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer fileData.Close()
 
-	// Go tool for creating multipart form data
-	multipart.NewWriter(nil)
+	// Get file name from the provided path
+	fileName := filepath.Base(filePath)
 
-	return nil, nil
+	// Create multipart form from file data
+	// Create multipart writer
+	var reqBody bytes.Buffer
+	w := multipart.NewWriter(&reqBody)
+
+	err = w.WriteField("request-json", fmt.Sprintf(uploadR, c.SessionKey))
+	if err != nil {
+		return nil, err
+	}
+
+	fileBuffer, err := w.CreateFormFile("file", fileName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Copy data from file to multipart form body
+	_, err = io.Copy(fileBuffer, fileData)
+	if err != nil {
+		return nil, err
+	}
+
+	w.Close()
+
+	// Create request
+	req, err := http.NewRequest(
+		"POST",
+		c.BaseURL+uploadEP,
+		&reqBody,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set request headers
+	req.Header.Set("Content-Type", w.FormDataContentType())
+
+	var response = UploadResponse{}
+	// Send request, decode data into UploadResponse structure
+	err = c.doTheStuff(req, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	return &response, nil
 }
 
 // getSubmissionStatus queries the Astrometry API for the current status of a submission
 func (c *Client) getSubmissionStatus(subID string) (*SubmissionStatus, error) {
 
 	// Define request, submission ID has to be included in URL
-	req, reqErr := http.NewRequest(
+	req, err := http.NewRequest(
 		"GET",
 		c.BaseURL+fmt.Sprintf(subStatusEP, subID),
 		nil,
 	)
-	if reqErr != nil {
-		return nil, reqErr
+	if err != nil {
+		return nil, err
 	}
 
 	// req.WithContext(ctx)
 
 	var response = SubmissionStatus{}
 	// Send request, decode data into SubmissionStatus structure
-	respErr := c.doTheStuff(req, &response)
-	if respErr != nil {
-		return nil, respErr
+	err = c.doTheStuff(req, &response)
+	if err != nil {
+		return nil, err
 	}
 
 	return &response, nil
@@ -147,21 +197,21 @@ func (c *Client) getSubmissionStatus(subID string) (*SubmissionStatus, error) {
 func (c *Client) getJobStatus(jobID string) (*JobStatus, error) {
 
 	// Define request, job ID has to be included in URL
-	req, reqErr := http.NewRequest(
+	req, err := http.NewRequest(
 		"GET",
 		c.BaseURL+fmt.Sprintf(jobStatusEP, jobID),
 		nil,
 	)
-	if reqErr != nil {
-		return nil, reqErr
+	if err != nil {
+		return nil, err
 	}
 
 	// req.WithContext(ctx)
 
 	var response = JobStatus{}
-	respErr := c.doTheStuff(req, &response)
-	if respErr != nil {
-		return nil, respErr
+	err = c.doTheStuff(req, &response)
+	if err != nil {
+		return nil, err
 	}
 
 	return &response, nil
@@ -171,21 +221,21 @@ func (c *Client) getJobStatus(jobID string) (*JobStatus, error) {
 func (c *Client) getCalibration(jobID string) (*Calibration, error) {
 
 	// Define request, job ID has to be included in URL
-	req, reqErr := http.NewRequest(
+	req, err := http.NewRequest(
 		"GET",
 		c.BaseURL+fmt.Sprintf(calibrationEP, jobID),
 		nil,
 	)
-	if reqErr != nil {
-		return nil, reqErr
+	if err != nil {
+		return nil, err
 	}
 
 	// req.WithContext(ctx)
 
 	var response = Calibration{}
-	respErr := c.doTheStuff(req, &response)
-	if respErr != nil {
-		return nil, respErr
+	err = c.doTheStuff(req, &response)
+	if err != nil {
+		return nil, err
 	}
 
 	return &response, nil
@@ -195,21 +245,21 @@ func (c *Client) getCalibration(jobID string) (*Calibration, error) {
 func (c *Client) getTaggedObjects(jobID string) (*TaggedObjects, error) {
 
 	// Define request, job ID has to be included in URL
-	req, reqErr := http.NewRequest(
+	req, err := http.NewRequest(
 		"GET",
 		c.BaseURL+fmt.Sprintf(taggedObjectsEP, jobID),
 		nil,
 	)
-	if reqErr != nil {
-		return nil, reqErr
+	if err != nil {
+		return nil, err
 	}
 
 	// req.WithContext(ctx)
 
 	var response = TaggedObjects{}
-	respErr := c.doTheStuff(req, &response)
-	if respErr != nil {
-		return nil, respErr
+	err = c.doTheStuff(req, &response)
+	if err != nil {
+		return nil, err
 	}
 
 	return &response, nil
@@ -220,21 +270,21 @@ func (c *Client) getTaggedObjects(jobID string) (*TaggedObjects, error) {
 func (c *Client) getKnownObjects(jobID string) (*KnownObjects, error) {
 
 	// Define request, job ID has to be included in URL
-	req, reqErr := http.NewRequest(
+	req, err := http.NewRequest(
 		"GET",
 		c.BaseURL+fmt.Sprintf(knownObjectsEP, jobID),
 		nil,
 	)
-	if reqErr != nil {
-		return nil, reqErr
+	if err != nil {
+		return nil, err
 	}
 
 	// req.WithContext(ctx)
 
 	var response = KnownObjects{}
-	respErr := c.doTheStuff(req, &response)
-	if respErr != nil {
-		return nil, respErr
+	err = c.doTheStuff(req, &response)
+	if err != nil {
+		return nil, err
 	}
 
 	return &response, nil
@@ -244,21 +294,21 @@ func (c *Client) getKnownObjects(jobID string) (*KnownObjects, error) {
 func (c *Client) getAnnotations(jobID string) (*AnnotationsList, error) {
 
 	// Define request, job ID has to be included in URL
-	req, reqErr := http.NewRequest(
+	req, err := http.NewRequest(
 		"GET",
 		c.BaseURL+fmt.Sprintf(annotationsEP, jobID),
 		nil,
 	)
-	if reqErr != nil {
-		return nil, reqErr
+	if err != nil {
+		return nil, err
 	}
 
 	// req.WithContext(ctx)
 
 	var response = AnnotationsList{}
-	respErr := c.doTheStuff(req, &response)
-	if respErr != nil {
-		return nil, respErr
+	err = c.doTheStuff(req, &response)
+	if err != nil {
+		return nil, err
 	}
 
 	return &response, nil
@@ -268,21 +318,21 @@ func (c *Client) getAnnotations(jobID string) (*AnnotationsList, error) {
 func (c *Client) getJobResults(jobID string) (*JobResults, error) {
 
 	// Define request, job ID has to be included in URL
-	req, reqErr := http.NewRequest(
+	req, err := http.NewRequest(
 		"GET",
 		c.BaseURL+fmt.Sprintf(jobResultsEP, jobID),
 		nil,
 	)
-	if reqErr != nil {
-		return nil, reqErr
+	if err != nil {
+		return nil, err
 	}
 
 	// req.WithContext(ctx)
 
 	var response = JobResults{}
-	respErr := c.doTheStuff(req, &response)
-	if respErr != nil {
-		return nil, respErr
+	err = c.doTheStuff(req, &response)
+	if err != nil {
+		return nil, err
 	}
 
 	return &response, nil

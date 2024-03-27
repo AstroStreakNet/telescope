@@ -7,7 +7,7 @@ import (
 
 // Constants
 
-const AstrometryAPI = "https://nova.astrometry.com/api"
+const actualAPI = "https://nova.astrometry.com/api"
 
 // Client
 
@@ -22,7 +22,7 @@ type Client struct {
 func NewAstrometryClient(apiKey string) *Client {
 	return &Client{
 		apiKey:  apiKey,
-		BaseURL: AstrometryAPI,
+		BaseURL: actualAPI,
 		httpClient: &http.Client{
 			Timeout: time.Minute,
 		},
@@ -45,6 +45,10 @@ func (c *Client) Connect() {
 
 }
 
-func (c *Client) UploadFile(file string) {
+func (c *Client) UploadFile(file string) string {
+	return ""
+}
+
+func (c *Client) ReviewFile(subID string) {
 
 }
