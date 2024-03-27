@@ -61,7 +61,7 @@ func (c *Client) doTheStuff(request *http.Request, dataStructure interface{}) er
 	checkBytes := bytes.NewBuffer(respBytes.Bytes())
 
 	// Error checking has to be done in this roundabout way due to Astrometry API not properly using http status codes,
-	// it returns 200, http ok status code, regardless of whether query was actually a success or not.
+	// it returns 200, http ok status code, regardless of whether the query was actually a success or not.
 	// The response body has to be checked to determine if an error has occurred.
 	// It is very annoying.
 	var errorResponse = ErrorResponse{}
