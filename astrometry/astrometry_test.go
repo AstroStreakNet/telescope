@@ -8,27 +8,24 @@ import (
 	"testing"
 )
 
-// Assertion messages
 const (
+	// Assertion messages
 	assertEqualMsg   = "Response should match json file data correctly"
 	assertErrorMsg   = "error should occur as response was an error message"
 	assertNilRespMsg = "Shouldn't be any errors in request creation and response decoding"
-)
-
-// Test data file paths and ids
-const (
+	// Test data file paths
 	errorFile         = "/astrometry/error.json"
 	loginFile         = "/astrometry/login.json"
 	uploadFile        = "/astrometry/upload.json"
 	subStatusFile     = "/astrometry/submission_status.json"
 	jobStatusFile     = "/astrometry/job_status.json"
-	calibrationFile   = "/astrometry/calibration.json"
+	calibrationFile   = "/astrometry/Calibration.json"
 	taggedObjectsFile = "/astrometry/tagged_objects.json"
 	knownObjectsFile  = "/astrometry/known_objects.json"
 	annotationsFile   = "/astrometry/annotations.json"
 	jobResultsFile    = "/astrometry/job_results.json"
 	fileToUpload      = "/astrometry/file_to_upload.txt"
-
+	// IDs
 	subID = "12345"
 	jobID = "54321"
 )
@@ -53,7 +50,7 @@ func testSetupEndpointsError(endpoint string) func() {
 	client = NewClient(server.URL, "fakeKeyForAPI")
 	client.SessionKey = "fakeKeyForSession"
 
-	// Define endpoint handler on test server
+	// Define endpoints handler on test server
 	mux.HandleFunc(endpoint, func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "text/plain")

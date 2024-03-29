@@ -8,7 +8,7 @@ import (
 
 // GetTestDataString is primarily used to write the json data into a http response for client request testing
 func GetTestDataString(filePath string) string {
-	data, err := os.ReadFile("../testdata" + filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		panic(err)
 	}
@@ -17,7 +17,7 @@ func GetTestDataString(filePath string) string {
 
 // GetTestData is used to load the json data of the response, used to verify client's returned data is correct
 func GetTestData(filePath string) []byte {
-	data, err := os.ReadFile("../testdata" + filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		panic(err)
 	}
@@ -25,5 +25,5 @@ func GetTestData(filePath string) []byte {
 }
 
 func GetTestFilePath(filePath string) string {
-	return "../testdata" + filePath
+	return filePath
 }
