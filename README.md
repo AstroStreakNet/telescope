@@ -1,4 +1,4 @@
-# Telescope v0.1.3
+# Telescope v0.2.4
 
 Go wrapper around the astrometry API and image processing tools. Heavily focused around the FITS file format.
 
@@ -126,7 +126,7 @@ many more API calls to be complete and doesn't provide anything more useful, at 
 use case that this library was designed for.
 
 ```go
-partialReview, err := c.PartialReview("./testdata/test_file.png")
+partialReview, err := c.GetPartialReview("./testdata/test_file.png")
 if err != nil {
 	log.Fatal(err)
 }
