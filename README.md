@@ -69,13 +69,6 @@ import (
 func main() {
 	var apiKey string = "KarshLovesWindowsAndGoogle"
 	client := astrometry.NewAstrometryClient(apiKey)
-
-	// Connect() returns session key
-	// Client automatically stores it, you don't have to use this return value
-	sessionKey, err := client.Connect()
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 ```
 
@@ -122,3 +115,18 @@ if err != nil {
 >
 > **Connect()** simply gets a session key, the astrometry session keys are only needed for uploading.
 
+### Checking Submissions
+
+Checking a submission can be done by providing the submission ID.
+A struct with two fields is returned, allowing you to check if the job is done and
+also query the job IDs.
+
+```go
+subStat, err := c.ReviewSubmission(subID)
+if err != nil {
+	log.Fatal(err)
+}
+
+subStat.Finished // bool
+subStat.Jobs // []int list of job ids for submission
+```
