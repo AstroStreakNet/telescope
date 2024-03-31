@@ -21,44 +21,9 @@ type Client struct {
 	apiKey      string
 	baseURL     string
 	SessionKey  string
-	submissions []int
-	finished    []int
+	submissions map[string]int
+	finished    map[string]int
 	httpClient  *http.Client
-}
-
-// Client utility functions
-
-func (c *Client) addSubmission(s int) {
-	c.submissions = append(c.submissions, s)
-}
-
-// removeSubmission is much slower than the alternative removeSubmissionByIndex
-func (c *Client) removeSubmission(s int) {
-	for i, subID := range c.submissions {
-		if subID == s {
-			c.removeSubmissionByIndex(i)
-		}
-	}
-}
-
-func (c *Client) removeSubmissionByIndex(index int) {
-	c.submissions = append(c.submissions[:index], c.submissions[index+1:]...)
-}
-
-func (c *Client) addFinished(s int) {
-	c.finished = append(c.finished, s)
-}
-
-func (c *Client) removeFinished(s int) {
-	for i, subID := range c.finished {
-		if subID == s {
-			c.removeFinishedByIndex(i)
-		}
-	}
-}
-
-func (c *Client) removeFinishedByIndex(index int) {
-	c.finished = append(c.finished[:index], c.finished[index+1:]...)
 }
 
 // Client factory functions
@@ -66,7 +31,7 @@ func (c *Client) removeFinishedByIndex(index int) {
 func NewAstrometryClient(apiKey string) *Client {
 	return &Client{
 		apiKey:  apiKey,
-		baseURL: "http://nova.astrometry.net/api",
+		baseURL: "http://nova.astrometry.net/api", // Astrometry doesn't support https
 		httpClient: &http.Client{
 			Timeout: time.Minute,
 		},
@@ -149,34 +114,39 @@ func (c *Client) sessionCheck(e error) error {
 	return e
 }
 
-// Public methods
+// Public API call methods
 
 func (c *Client) Connect() (string, error) {
 	// Instantiate login request & response struct
-	req, err := endpoints.Login.Request(c.baseURL, c.apiKey)
+	req, err := endpoints.Login.Request(c.baseURL, c.apiKey, "")
 	if err != nil {
 		return "", err
 	}
 	var resp = responses.Login{}
+
 	// Send login
 	err = c.sendRequest(req, &resp)
 	if err != nil {
 		return "", err
 	}
+
 	// Assign session key to client
 	c.SessionKey = resp.Session
 	// Log success
 	slog.Debug(fmt.Sprintf("Succesful login, session key = %s", c.SessionKey))
+
 	// Return session key
 	return c.SessionKey, nil
 }
 
 func (c *Client) UploadFile(file string) (int, error) {
-	req, err := endpoints.UploadFile.Request(c.baseURL, c.SessionKey)
+	// Create request
+	req, err := endpoints.UploadFile.Request(c.baseURL, c.SessionKey, file)
 	if err != nil {
 		return 0, err
 	}
 	resp := responses.Upload{}
+
 	// Send upload request
 	err = c.sendRequest(req, &resp)
 	if err != nil {
@@ -186,14 +156,28 @@ func (c *Client) UploadFile(file string) (int, error) {
 		}
 		return c.UploadFile(file)
 	}
+
 	// If successful, add submission id to client list
-	c.addSubmission(resp.SubID)
+	c.addSubmission(file, resp.SubID)
 	// Return submission id
 	return resp.SubID, nil
 }
 
-func (c *Client) ReviewSubmission(subID int) (*SubStat, error) {
-	req, err := endpoints.SubmissionStatus.Request(c.baseURL, strconv.Itoa(subID))
+// Public methods that combine multiple calls
+
+func (c *Client) GetPartialReview(file string) (*PartialReview, error) {
+
+	subID := c.getSubmissionID(file)
+
+	var partialReview = PartialReview{
+		ID:       subID,
+		FileName: file,
+		Finished: false,
+		Relevant: true,
+	}
+
+	// SubmissionStatus
+	req, err := endpoints.SubmissionStatus.Request(c.baseURL, strconv.Itoa(subID), "")
 	if err != nil {
 		return nil, err
 	}
@@ -203,54 +187,130 @@ func (c *Client) ReviewSubmission(subID int) (*SubStat, error) {
 		return nil, err
 	}
 
-	subStat := SubStatFromResponse(resp)
-	if subStat.Finished {
-		c.removeSubmission(subID)
-		c.addFinished(subID)
-	}
+	if len(resp.JobCalibrations) > 0 {
+		partialReview.Finished = true
 
-	return SubStatFromResponse(resp), nil
-}
-
-func (c *Client) CheckSubmissions() ([]int, error) {
-	var finished []int
-	for i, cSub := range c.CurrentSubmissions() {
-		subStat, err := c.ReviewSubmission(cSub)
+		jobs := resp.Jobs
+		// Calibration request
+		req, err := endpoints.Calibration.Request(c.baseURL, strconv.Itoa(jobs[0]), "")
 		if err != nil {
-			return finished, err
+			return nil, err
 		}
-		if subStat.Finished {
-			c.removeSubmissionByIndex(i)
-			c.addFinished(cSub)
-			finished = append(finished, cSub)
+
+		resp := responses.Calibration{}
+		if err = c.sendRequest(req, &resp); err != nil {
+			return nil, err
 		}
+
+		partialReview.Calibration = resp
 	}
-	return finished, nil
+
+	return &partialReview, nil
 }
 
-func (c *Client) CurrentSubmissions() []int {
+func (c *Client) CheckSubmission(file string) (*responses.SubmissionStatus, error) {
+	// Check if submission is listed
+	subID := c.getSubmissionID(file)
+	if subID == 0 {
+		return nil, errors.New("submission not in client submission/finished list")
+	}
+
+	// Create request
+	req, err := endpoints.SubmissionStatus.Request(c.baseURL, strconv.Itoa(subID), "")
+	if err != nil {
+		return nil, err
+	}
+
+	// Send request
+	resp := responses.SubmissionStatus{}
+	if err = c.sendRequest(req, &resp); err != nil {
+		return nil, err
+	}
+
+	// Check if submission has finished
+	if len(resp.JobCalibrations) > 0 {
+		c.removeSubmission(file)
+		c.addFinished(file, subID)
+	}
+
+	return &resp, nil
+}
+
+// Client utility functions, boilerplate getters and setters
+
+func (c *Client) UpdateAllSubmissions() error {
+	for file := range c.CurrentSubmissions() {
+		if _, err := c.CheckSubmission(file); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Client) CurrentSubmissions() map[string]int {
 	return c.submissions
 }
 
-func (c *Client) FinishedSubmissions() []int {
+func (c *Client) FinishedSubmissions() map[string]int {
 	return c.finished
+}
+
+func (c *Client) getSubmissionID(fileName string) int {
+	var subID int
+	subID = c.submissions[fileName]
+	if subID == 0 {
+		subID = c.finished[fileName]
+	}
+	return subID
+}
+
+func (c *Client) addSubmission(fileName string, subID int) {
+	c.submissions[fileName] = subID
+}
+
+func (c *Client) removeSubmission(fileName string) {
+	delete(c.submissions, fileName)
+}
+
+func (c *Client) addFinished(fileName string, subID int) {
+	c.finished[fileName] = subID
+}
+
+func (c *Client) removeFinished(fileName string) {
+	delete(c.finished, fileName)
 }
 
 // Structs
 
-type SubStat struct {
+type PartialReview struct {
+	// Overview
+	ID       int
+	FileName string
 	Finished bool
-	Jobs     []int
+	Relevant bool
+	// Tagged objects in field
+	Objects []string
+	// Telescope calibration
+	Calibration responses.Calibration
 }
 
-func SubStatFromResponse(resp responses.SubmissionStatus) *SubStat {
-	subStat := SubStat{
-		Finished: false,
-		Jobs:     resp.Jobs,
-	}
-	// If job calibrations not empty then job has been finished
-	if len(resp.JobCalibrations) > 0 {
-		subStat.Finished = true
-	}
-	return &subStat
+type FullReview struct {
+	// Overview
+	ID       int
+	FileName string
+	Finished bool
+	Relevant bool
+	// Start and finish times
+	Start  string
+	Finish string
+	// Associated job IDs
+	Jobs []int
+	// Tags
+	MachineTags    []string
+	Tags           []string
+	ObjectsInField []string
+	// Object positions
+	ObjectPositions responses.Annotations
+	// Telescope calibration
+	Calibration responses.Calibration
 }

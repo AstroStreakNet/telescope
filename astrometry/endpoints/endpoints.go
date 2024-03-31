@@ -3,7 +3,12 @@ package endpoints
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"log"
+	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 )
 
 // Type
@@ -63,34 +68,81 @@ func (e Endpoint) URL() string {
 	}
 }
 
-func (e Endpoint) Body(key string) *bytes.Buffer {
+func (e Endpoint) Body(key string) []byte {
 	switch e {
 	case 0:
-		// Define arguments for request
-		return bytes.NewBuffer([]byte(fmt.Sprintf(`request-json={"apikey": "%s"}`, key)))
+		// Login
+		return []byte(fmt.Sprintf(`request-json={"apikey": "%s"}`, key))
+
 	case 1, 2:
-		return bytes.NewBuffer(
-			[]byte(
-				fmt.Sprintf(
-					`request-json={"session": "%s", "allow_commercial_use": "n", "allow_modifications": "n", "publicly_visible": "n"}`,
-					key,
-				),
+		// Upload URL, Upload File
+		return []byte(
+			fmt.Sprintf(
+				`request-json={"session": "%s", "allow_commercial_use": "n", "allow_modifications": "n", "publicly_visible": "n"}`,
+				key,
 			),
 		)
+
 	default:
 		return nil
 	}
 }
 
-func (e Endpoint) Request(baseURL, keyOrID string) (*http.Request, error) {
+func (e Endpoint) Request(baseURL, keyOrID, filePath string) (*http.Request, error) {
 	switch e {
-	case 0, 1, 2:
-		req, err := http.NewRequest(e.Method(), baseURL+e.URL(), e.Body(keyOrID))
+	case 0, 1:
+		// Login, Upload URL
+		req, err := http.NewRequest(e.Method(), baseURL+e.URL(), bytes.NewBuffer(e.Body(keyOrID)))
 		if err != nil {
 			return nil, err
 		}
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		return req, nil
+
+	case 2:
+		// Upload File
+		var reqBody bytes.Buffer
+		mw := multipart.NewWriter(&reqBody)
+		// Form field
+		formField, err := mw.CreateFormField("request.json")
+		if err != nil {
+			return nil, err
+		}
+		if _, err = formField.Write(e.Body(keyOrID)); err != nil {
+			return nil, err
+		}
+		// Open file
+		file, err := os.Open(filePath)
+		if err != nil {
+			return nil, err
+		}
+		defer func(file *os.File) {
+			err := file.Close()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}(file)
+		// File field
+		fileField, err := mw.CreateFormFile("file", filepath.Base(filePath))
+		if err != nil {
+			return nil, err
+		}
+		if _, err = io.Copy(fileField, file); err != nil {
+			return nil, err
+		}
+		err = mw.Close()
+		if err != nil {
+			return nil, err
+		}
+		// Create request
+		req, err := http.NewRequest(e.Method(), baseURL+e.URL(), &reqBody)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		// Return
+		return req, nil
+
 	case 3, 4, 5, 6, 7, 8, 9:
 		return http.NewRequest(e.Method(), baseURL+fmt.Sprintf(e.URL(), keyOrID), nil)
 	default:

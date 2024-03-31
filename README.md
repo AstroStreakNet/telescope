@@ -135,3 +135,8 @@ if err != nil {
 subStat.Finished // bool
 subStat.Jobs // []int list of job ids for submission
 ```
+
+## Project Origin
+
+Telescope was developed as a final year project for the Software Engineering
+program at Swinburne University of Technology. 
