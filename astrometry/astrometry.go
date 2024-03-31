@@ -17,7 +17,7 @@ import (
 
 // Constants
 
-const actualAPI = "https://nova.astrometry.com/api"
+const actualAPI = "http://nova.astrometry.com/api"
 
 // Client
 
