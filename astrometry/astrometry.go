@@ -15,10 +15,6 @@ import (
 	"time"
 )
 
-// Constants
-
-const actualAPI = "http://nova.astrometry.com/api"
-
 // Client
 
 type Client struct {
@@ -70,7 +66,7 @@ func (c *Client) removeFinishedByIndex(index int) {
 func NewAstrometryClient(apiKey string) *Client {
 	return &Client{
 		apiKey:  apiKey,
-		baseURL: actualAPI,
+		baseURL: "http://nova.astrometry.net/api",
 		httpClient: &http.Client{
 			Timeout: time.Minute,
 		},
