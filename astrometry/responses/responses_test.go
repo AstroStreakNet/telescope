@@ -2,8 +2,8 @@ package responses
 
 import (
 	"encoding/json"
+	"github.com/AstroStreakNet/telescope/util"
 	"github.com/stretchr/testify/assert"
-	"telescope/util"
 	"testing"
 )
 

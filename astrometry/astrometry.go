@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/AstroStreakNet/telescope/astrometry/endpoints"
+	"github.com/AstroStreakNet/telescope/astrometry/responses"
 	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
-	"telescope/astrometry/endpoints"
-	"telescope/astrometry/responses"
 	"time"
 )
 

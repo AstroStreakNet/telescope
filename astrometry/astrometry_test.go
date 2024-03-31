@@ -2,9 +2,9 @@ package astrometry
 
 import (
 	"fmt"
+	"github.com/AstroStreakNet/telescope/util"
 	"net/http"
 	"net/http/httptest"
-	"telescope/util"
 	"testing"
 )
 
