@@ -1,33 +1,15 @@
 package astrometry
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/AstroStreakNet/telescope/astrometry/endpoints"
+	"github.com/AstroStreakNet/telescope/astrometry/responses"
 	"github.com/AstroStreakNet/telescope/util"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-)
-
-const (
-	// Assertion messages
-	assertEqualMsg   = "Response should match json file data correctly"
-	assertErrorMsg   = "error should occur as response was an error message"
-	assertNilRespMsg = "Shouldn't be any errors in request creation and response decoding"
-	// Test data file paths
-	errorFile         = "/astrometry/error.json"
-	loginFile         = "/astrometry/login.json"
-	uploadFile        = "/astrometry/upload.json"
-	subStatusFile     = "/astrometry/submission_status.json"
-	jobStatusFile     = "/astrometry/job_status.json"
-	calibrationFile   = "/astrometry/Calibration.json"
-	taggedObjectsFile = "/astrometry/tagged_objects.json"
-	knownObjectsFile  = "/astrometry/known_objects.json"
-	annotationsFile   = "/astrometry/annotations.json"
-	jobResultsFile    = "/astrometry/job_results.json"
-	fileToUpload      = "/astrometry/file_to_upload.txt"
-	// IDs
-	subID = "12345"
-	jobID = "54321"
 )
 
 var (
@@ -36,7 +18,7 @@ var (
 	client *Client
 )
 
-func testSetupEndpoints() func() {
+func testSetup() func() {
 	mux = http.NewServeMux()
 	server = httptest.NewServer(mux)
 	client = NewClient(server.URL, "fakeKeyForAPI")
@@ -55,7 +37,7 @@ func testSetupEndpointsError(endpoint string) func() {
 
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
-		_, wErr := fmt.Fprint(w, util.GetTestDataString(errorFile))
+		_, wErr := fmt.Fprint(w, util.GetTestDataString("./testdata/error.json"))
 		if wErr != nil {
 			panic(fmt.Sprintf("test server response write failure: %s", wErr))
 		}
@@ -64,6 +46,34 @@ func testSetupEndpointsError(endpoint string) func() {
 	return server.Close
 }
 
-func TestSignIn(t *testing.T) {
+func TestConnect(t *testing.T) {
+	endTest := testSetup()
+	defer endTest()
 
+	mux.HandleFunc(endpoints.Login.URL(), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		if _, err := fmt.Fprint(w, util.GetTestDataString("./testdata/login.json")); err != nil {
+			panic(fmt.Sprintf("test server response write failure: %s", err))
+		}
+	})
+
+	req, err := endpoints.Login.Request(client.baseURL, client.apiKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := responses.Login{}
+	err = client.sendRequest(req, &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ref := responses.Login{}
+	err = json.Unmarshal(util.GetTestData("./testdata/login.json"), &ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%v", ref)
+	t.Logf("%v", resp)
+	assert.EqualValues(t, ref, resp)
 }

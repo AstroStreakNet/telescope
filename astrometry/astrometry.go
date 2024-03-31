@@ -89,9 +89,9 @@ func NewClient(baseURL, apiKey string) *Client {
 
 // Private methods
 
-// sendRequest is a Client method that sends off requests, checks if the response is an error message,
+// SendRequest is a Client method that sends off requests, checks if the response is an error message,
 // and if not then decodes the data into a specified data structure
-func (c *Client) sendRequest(req *http.Request, respStruct interface{}) error {
+func (c *Client) SendRequest(req *http.Request, respStruct interface{}) error {
 	// Send provided request
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
