@@ -121,6 +121,11 @@ Checking a submission can be done by providing the submission ID.
 A struct with two fields is returned, allowing you to check if the job is done and
 also query the job IDs.
 
+> I realise this is not particularly intuitive.
+> 
+> In future iterations you will be able to check submission status through just 
+> providing the file name you submitted.
+
 ```go
 subStat, err := c.ReviewSubmission(subID)
 if err != nil {
