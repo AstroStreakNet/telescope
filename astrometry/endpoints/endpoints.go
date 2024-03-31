@@ -104,7 +104,7 @@ func (e Endpoint) Request(baseURL, keyOrID, filePath string) (*http.Request, err
 		var reqBody bytes.Buffer
 		mw := multipart.NewWriter(&reqBody)
 		// Form field
-		formField, err := mw.CreateFormField("request.json")
+		formField, err := mw.CreateFormField("request-json")
 		if err != nil {
 			return nil, err
 		}
