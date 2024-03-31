@@ -117,23 +117,41 @@ if err != nil {
 
 ### Checking Submissions
 
-Checking a submission can be done by providing the submission ID.
-A struct with two fields is returned, allowing you to check if the job is done and
-also query the job IDs.
+Checking a submission can be done by providing the filepath submitted.
+A struct will be returned depending on whether you called for a FullReview or
+a PartialReview.
 
-> I realise this is not particularly intuitive.
-> 
-> In future iterations you will be able to check submission status through just 
-> providing the file name you submitted.
+A partial review is recommended the vast majority of the time as a full review requires
+many more API calls to be complete and doesn't provide anything more useful, at least in the
+use case that this library was designed for.
 
 ```go
-subStat, err := c.ReviewSubmission(subID)
+partialReview, err := c.PartialReview("./testdata/test_file.png")
 if err != nil {
 	log.Fatal(err)
 }
+```
 
-subStat.Finished // bool
-subStat.Jobs // []int list of job ids for submission
+```go
+// GetPartialReview returns PartialReview
+type PartialReview struct {
+    // Overview
+    ID       int
+    FileName string
+    Finished bool
+    Relevant bool
+    // Tagged objects in field
+    Objects []string
+    // Telescope calibration
+    Calibration struct {
+        Parity      float64
+        Orientation float64
+        PixelScale  float64
+        Radius      float64
+        Radian      float64
+        Decimal     float64
+    }
+}
 ```
 
 ## Project Origin

@@ -212,7 +212,9 @@ func (c *Client) GetPartialReview(file string) (*PartialReview, error) {
 	return &partialReview, nil
 }
 
-func (c *Client) CheckSubmission(file string) (*responses.SubmissionStatus, error) {
+// Private utility
+
+func (c *Client) checkSubmission(file string) (*responses.SubmissionStatus, error) {
 	// Check if submission is listed
 	subID := c.getSubmissionID(file)
 	if subID == 0 {
@@ -244,7 +246,7 @@ func (c *Client) CheckSubmission(file string) (*responses.SubmissionStatus, erro
 
 func (c *Client) UpdateAllSubmissions() error {
 	for file := range c.CurrentSubmissions() {
-		if _, err := c.CheckSubmission(file); err != nil {
+		if _, err := c.checkSubmission(file); err != nil {
 			return err
 		}
 	}
