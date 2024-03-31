@@ -35,6 +35,8 @@ func NewAstrometryClient(apiKey string) *Client {
 		httpClient: &http.Client{
 			Timeout: time.Minute,
 		},
+		submissions: make(map[string]int),
+		finished:    make(map[string]int),
 	}
 }
 
@@ -45,6 +47,8 @@ func NewClient(baseURL, apiKey string) *Client {
 		httpClient: &http.Client{
 			Timeout: time.Minute,
 		},
+		submissions: make(map[string]int),
+		finished:    make(map[string]int),
 	}
 }
 
