@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"telescope/astrometry/endpoints"
 	"telescope/astrometry/responses"
@@ -29,9 +30,42 @@ type Client struct {
 	httpClient  *http.Client
 }
 
+// Client utility functions
+
 func (c *Client) addSubmission(s int) {
 	c.submissions = append(c.submissions, s)
 }
+
+// removeSubmission is much slower than the alternative removeSubmissionByIndex
+func (c *Client) removeSubmission(s int) {
+	for i, subID := range c.submissions {
+		if subID == s {
+			c.removeSubmissionByIndex(i)
+		}
+	}
+}
+
+func (c *Client) removeSubmissionByIndex(index int) {
+	c.submissions = append(c.submissions[:index], c.submissions[index+1:]...)
+}
+
+func (c *Client) addFinished(s int) {
+	c.finished = append(c.finished, s)
+}
+
+func (c *Client) removeFinished(s int) {
+	for i, subID := range c.finished {
+		if subID == s {
+			c.removeFinishedByIndex(i)
+		}
+	}
+}
+
+func (c *Client) removeFinishedByIndex(index int) {
+	c.finished = append(c.finished[:index], c.finished[index+1:]...)
+}
+
+// Client factory functions
 
 func NewAstrometryClient(apiKey string) *Client {
 	return &Client{
@@ -103,17 +137,20 @@ func (c *Client) sendRequest(req *http.Request, respStruct interface{}) error {
 	return nil
 }
 
-func (c *Client) reconnect(e error) (bool, error) {
+func (c *Client) sessionCheck(e error) error {
 	// Check if session key has expired.
 	if strings.Contains(e.Error(), "no session with key") {
 		// If session key expired, login again
 		_, err := c.Connect()
 		if err != nil {
-			return false, err
+			// Session key was issue, failed to reconnect
+			return err
 		}
-		return true, nil
+		// Session key was issue, reconnected
+		return nil
 	}
-	return false, nil
+	// Session key wasn't issue
+	return e
 }
 
 // Public methods
@@ -121,6 +158,9 @@ func (c *Client) reconnect(e error) (bool, error) {
 func (c *Client) Connect() (string, error) {
 	// Instantiate login request & response struct
 	req, err := endpoints.Login.Request(c.baseURL, c.apiKey)
+	if err != nil {
+		return "", err
+	}
 	var resp = responses.Login{}
 	// Send login
 	err = c.sendRequest(req, &resp)
@@ -137,13 +177,18 @@ func (c *Client) Connect() (string, error) {
 
 func (c *Client) UploadFile(file string) (int, error) {
 	req, err := endpoints.UploadFile.Request(c.baseURL, c.SessionKey)
+	if err != nil {
+		return 0, err
+	}
 	resp := responses.Upload{}
 	// Send upload request
 	err = c.sendRequest(req, &resp)
 	if err != nil {
-
-		strings.Contains(err.Error(), "no session with key")
-
+		err = c.sessionCheck(err)
+		if err != nil {
+			return 0, err
+		}
+		return c.UploadFile(file)
 	}
 	// If successful, add submission id to client list
 	c.addSubmission(resp.SubID)
@@ -151,8 +196,40 @@ func (c *Client) UploadFile(file string) (int, error) {
 	return resp.SubID, nil
 }
 
-func (c *Client) ReviewFile(subID string) {
+func (c *Client) ReviewSubmission(subID int) (*SubStat, error) {
+	req, err := endpoints.SubmissionStatus.Request(c.baseURL, strconv.Itoa(subID))
+	if err != nil {
+		return nil, err
+	}
 
+	resp := responses.SubmissionStatus{}
+	if err = c.sendRequest(req, &resp); err != nil {
+		return nil, err
+	}
+
+	subStat := SubStatFromResponse(resp)
+	if subStat.Finished {
+		c.removeSubmission(subID)
+		c.addFinished(subID)
+	}
+
+	return SubStatFromResponse(resp), nil
+}
+
+func (c *Client) CheckSubmissions() ([]int, error) {
+	var finished []int
+	for i, cSub := range c.CurrentSubmissions() {
+		subStat, err := c.ReviewSubmission(cSub)
+		if err != nil {
+			return finished, err
+		}
+		if subStat.Finished {
+			c.removeSubmissionByIndex(i)
+			c.addFinished(cSub)
+			finished = append(finished, cSub)
+		}
+	}
+	return finished, nil
 }
 
 func (c *Client) CurrentSubmissions() []int {
@@ -161,4 +238,23 @@ func (c *Client) CurrentSubmissions() []int {
 
 func (c *Client) FinishedSubmissions() []int {
 	return c.finished
+}
+
+// Structs
+
+type SubStat struct {
+	Finished bool
+	Jobs     []int
+}
+
+func SubStatFromResponse(resp responses.SubmissionStatus) *SubStat {
+	subStat := SubStat{
+		Finished: false,
+		Jobs:     resp.Jobs,
+	}
+	// If job calibrations not empty then job has been finished
+	if len(resp.JobCalibrations) > 0 {
+		subStat.Finished = true
+	}
+	return &subStat
 }

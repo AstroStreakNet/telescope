@@ -44,7 +44,7 @@ func ConvertFITS(inputPath, outputPath string) error {
 			log.Fatalf("ReadCloser failure: %s", err)
 		}
 	}(file)
-
+	
 	fits, err := fitsio.Open(file)
 	if err != nil {
 		return err
