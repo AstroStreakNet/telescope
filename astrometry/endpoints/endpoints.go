@@ -74,11 +74,20 @@ func (e Endpoint) Body(key string) []byte {
 		// Login
 		return []byte(fmt.Sprintf(`request-json={"apikey": "%s"}`, key))
 
-	case 1, 2:
-		// Upload URL, Upload File
+	case 1:
+		// Upload URL
 		return []byte(
 			fmt.Sprintf(
-				`request-json={"session": "%s", "allow_commercial_use": "n", "allow_modifications": "n", "publicly_visible": "n"}`,
+				`request-json={"publicly_visible": "n", "allow_modifications": "n", "session": "%s", "allow_commercial_use": "n"}`,
+				key,
+			),
+		)
+
+	case 2:
+		// Upload File
+		return []byte(
+			fmt.Sprintf(
+				`{"publicly_visible": "n", "allow_modifications": "n", "session": "%s", "allow_commercial_use": "n"}`,
 				key,
 			),
 		)
