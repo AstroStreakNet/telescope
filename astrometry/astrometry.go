@@ -5,12 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/AstroStreakNet/telescope/astrometry/endpoints"
-	"github.com/AstroStreakNet/telescope/astrometry/responses"
 	"io"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -84,7 +81,7 @@ func (c *Client) sendRequest(req *http.Request, respStruct interface{}) error {
 	// it returns 200, http ok status code, regardless of whether the query was actually a success or not.
 	// The response body has to be checked to determine if an error has occurred.
 	// It is very annoying.
-	var errorResponse = responses.Error{}
+	var errorResponse = ErrorResponse{}
 	err = json.NewDecoder(checkBytes).Decode(&errorResponse)
 	if err != nil {
 		return err
@@ -122,11 +119,12 @@ func (c *Client) sessionCheck(e error) error {
 
 func (c *Client) Connect() (string, error) {
 	// Instantiate login request & response struct
-	req, err := endpoints.Login.Request(c.baseURL, c.apiKey, "")
+	options := LoginOptions(c.baseURL, c.apiKey)
+	req, err := Login.GetRequest(options)
 	if err != nil {
 		return "", err
 	}
-	var resp = responses.Login{}
+	var resp = LoginResponse{}
 
 	// Send login
 	err = c.sendRequest(req, &resp)
@@ -145,11 +143,12 @@ func (c *Client) Connect() (string, error) {
 
 func (c *Client) UploadFile(file string) (int, error) {
 	// Create request
-	req, err := endpoints.UploadFile.Request(c.baseURL, c.SessionKey, file)
+	options := UploadOptions(c.baseURL, c.SessionKey, file)
+	req, err := Upload.GetRequest(options)
 	if err != nil {
 		return 0, err
 	}
-	resp := responses.Upload{}
+	resp := UploadResponse{}
 
 	// Send upload request
 	err = c.sendRequest(req, &resp)
@@ -181,12 +180,13 @@ func (c *Client) GetPartialReview(file string) (*PartialReview, error) {
 	}
 
 	// SubmissionStatus
-	req, err := endpoints.SubmissionStatus.Request(c.baseURL, strconv.Itoa(subID), "")
+	options := SubmissionStatusOptions(c.baseURL, subID)
+	req, err := SubmissionStatus.GetRequest(options)
 	if err != nil {
 		return nil, err
 	}
 
-	resp := responses.SubmissionStatus{}
+	resp := SubmissionStatusResponse{}
 	if err = c.sendRequest(req, &resp); err != nil {
 		return nil, err
 	}
@@ -195,18 +195,24 @@ func (c *Client) GetPartialReview(file string) (*PartialReview, error) {
 		partialReview.Finished = true
 
 		jobs := resp.Jobs
-		// Calibration request
-		req, err := endpoints.Calibration.Request(c.baseURL, strconv.Itoa(jobs[0]), "")
+		// Job results request
+		options := JobResultsOptions(c.baseURL, jobs[0])
+		req, err := JobResults.GetRequest(options)
 		if err != nil {
 			return nil, err
 		}
 
-		resp := responses.Calibration{}
+		resp := JobResultsResponse{}
 		if err = c.sendRequest(req, &resp); err != nil {
 			return nil, err
 		}
 
-		partialReview.Calibration = resp
+		if resp.Status == "failure" {
+			partialReview.Relevant = false
+		} else {
+			partialReview.Relevant = true
+			partialReview.Calibration = resp.Calibration
+		}
 	}
 
 	return &partialReview, nil
@@ -214,7 +220,7 @@ func (c *Client) GetPartialReview(file string) (*PartialReview, error) {
 
 // Private utility
 
-func (c *Client) checkSubmission(file string) (*responses.SubmissionStatus, error) {
+func (c *Client) checkSubmission(file string) (*SubmissionStatusResponse, error) {
 	// Check if submission is listed
 	subID := c.getSubmissionID(file)
 	if subID == 0 {
@@ -222,13 +228,14 @@ func (c *Client) checkSubmission(file string) (*responses.SubmissionStatus, erro
 	}
 
 	// Create request
-	req, err := endpoints.SubmissionStatus.Request(c.baseURL, strconv.Itoa(subID), "")
+	options := SubmissionStatusOptions(c.baseURL, subID)
+	req, err := SubmissionStatus.GetRequest(options)
 	if err != nil {
 		return nil, err
 	}
 
 	// Send request
-	resp := responses.SubmissionStatus{}
+	resp := SubmissionStatusResponse{}
 	if err = c.sendRequest(req, &resp); err != nil {
 		return nil, err
 	}
@@ -297,7 +304,7 @@ type PartialReview struct {
 	// Tagged objects in field
 	Objects []string
 	// Telescope calibration
-	Calibration responses.Calibration
+	Calibration CalibrationResponse
 }
 
 type FullReview struct {
@@ -316,7 +323,7 @@ type FullReview struct {
 	Tags           []string
 	ObjectsInField []string
 	// Object positions
-	ObjectPositions responses.Annotations
+	ObjectPositions AnnotationsResponse
 	// Telescope calibration
-	Calibration responses.Calibration
+	Calibration CalibrationResponse
 }

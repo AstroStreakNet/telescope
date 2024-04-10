@@ -1,6 +1,6 @@
 module github.com/AstroStreakNet/telescope
 
-go 1.22
+go 1.22.1
 
 require (
 	github.com/astrogo/fitsio v0.3.0

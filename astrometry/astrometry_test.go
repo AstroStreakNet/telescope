@@ -3,8 +3,6 @@ package astrometry
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/AstroStreakNet/telescope/astrometry/endpoints"
-	"github.com/AstroStreakNet/telescope/astrometry/responses"
 	"github.com/AstroStreakNet/telescope/util"
 	"github.com/stretchr/testify/assert"
 	"net/http"
@@ -50,7 +48,7 @@ func TestConnect(t *testing.T) {
 	endTest := testSetup()
 	defer endTest()
 
-	mux.HandleFunc(endpoints.Login.URL(), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(Login.URL(), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
 		if _, err := fmt.Fprint(w, util.GetTestDataString("./testdata/login.json")); err != nil {
@@ -58,17 +56,17 @@ func TestConnect(t *testing.T) {
 		}
 	})
 
-	req, err := endpoints.Login.Request(client.baseURL, client.apiKey)
+	req, err := Login.GetRequest(LoginOptions(client.baseURL, client.apiKey))
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp := responses.Login{}
+	resp := LoginResponse{}
 	err = client.sendRequest(req, &resp)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ref := responses.Login{}
+	ref := LoginResponse{}
 	err = json.Unmarshal(util.GetTestData("./testdata/login.json"), &ref)
 	if err != nil {
 		t.Fatal(err)
