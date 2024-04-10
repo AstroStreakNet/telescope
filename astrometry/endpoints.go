@@ -35,13 +35,13 @@ func (e Endpoint) URL() string {
 	case Upload:
 		return "/upload"
 	case SubmissionStatus:
-		return "/submissions/%s"
+		return "/submissions/%d"
 	case Calibration:
-		return "/jobs/%s/Calibration"
+		return "/jobs/%d/calibration"
 	case Annotations:
-		return "/jobs/%s/annotations"
+		return "/jobs/%d/annotations"
 	case JobResults:
-		return "/jobs/%s/info"
+		return "/jobs/%d/info"
 	default:
 		return ""
 	}
@@ -60,7 +60,7 @@ func (e Endpoint) Arguments() string {
 
 func (e Endpoint) Method() string {
 	switch e {
-	case 0, 1, 2:
+	case Login, Upload:
 		return "POST"
 	default:
 		return "GET"
@@ -135,7 +135,7 @@ func (e Endpoint) GetRequest(options *Options) (*http.Request, error) {
 			nil,
 		)
 
-	case Calibration, JobResults:
+	case Calibration, Annotations, JobResults:
 		return http.NewRequest(
 			e.Method(),
 			options.BaseURL+fmt.Sprintf(e.URL(), options.JobID),
@@ -187,6 +187,13 @@ func SubmissionStatusOptions(baseURL string, submissionID int) *Options {
 }
 
 func CalibrationOptions(baseURL string, jobID int) *Options {
+	return &Options{
+		BaseURL: baseURL,
+		JobID:   jobID,
+	}
+}
+
+func AnnotationsOptions(baseURL string, jobID int) *Options {
 	return &Options{
 		BaseURL: baseURL,
 		JobID:   jobID,
