@@ -44,7 +44,26 @@ of the actual data in the FITS file.
 
 For future iterations of this package it is hoped that the cropping of FITS files will be
 implemented. Furthermore, the automatic cropping of the files to capture 'streaks' is the long-term
-deliverable. Please message me with ideas.
+deliverable.
+
+The header data of a fits file can be queried to collect the data points relevant to the coordinates and image 
+configuration.
+
+```go
+headerData := GetHeaderData("file_to_read.fits")
+```
+
+```go
+type HeaderData struct {
+    // Coordinate
+    RA  string
+    DEC string
+    MJD float64
+    // Image data
+    Radius       float64
+    ExposureTime float64
+}
+```
 
 ## Astrometry API Interface
 
