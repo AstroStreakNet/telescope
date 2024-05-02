@@ -42,8 +42,8 @@ type AnnotationsResponse struct {
 		Radius float64  `json:"radius"`
 		Type   string   `json:"type"`
 		Names  []string `json:"names"`
-		Pixelx float64  `json:"pixelx"`
-		Pixely float64  `json:"pixely"`
+		PixelX float64  `json:"pixelx"`
+		PixelY float64  `json:"pixely"`
 	} `json:"annotations"`
 }
 

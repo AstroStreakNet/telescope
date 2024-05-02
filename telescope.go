@@ -2,6 +2,7 @@ package telescope
 
 import (
 	"errors"
+	"github.com/AstroStreakNet/telescope/util/FITS"
 	"github.com/astrogo/fitsio"
 	"image/jpeg"
 	"image/png"
@@ -30,22 +31,8 @@ func CropFITS(imagePath string) error {
 // ConvertFITS is a function for taking a FITS file and outputting the data in a different image format, jpeg/png.
 // Takes path to FITS file, creates new file in jpeg/png format at designated output path
 func ConvertFITS(inputPath, outputPath string) error {
-	if filepath.Ext(inputPath) != ".fits" {
-		return errors.New("provided file is not a FITS file, is not .fits")
-	}
 
-	file, err := os.Open(inputPath)
-	if err != nil {
-		return err
-	}
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-			log.Fatalf("ReadCloser failure: %s", err)
-		}
-	}(file)
-	
-	fits, err := fitsio.Open(file)
+	fits, err := FITS.OpenFits(inputPath)
 	if err != nil {
 		return err
 	}
@@ -101,3 +88,40 @@ func ConvertFITS(inputPath, outputPath string) error {
 // - Fpack/Funpack FITS compression
 // - Function to normalise FITS data for ml purposes
 // - Function to flatten FITS data for ml purposes
+
+// Data extraction
+
+type HeaderData struct {
+	// Coordinate
+	RA  string
+	DEC string
+	MJD float64
+	// Image data
+	Radius       float64
+	ExposureTime float64
+}
+
+func GetHeaderData(fitsFile string) (*HeaderData, error) {
+	fits, err := FITS.OpenFits(fitsFile)
+	if err != nil {
+		return nil, err
+	}
+	defer func(fits *fitsio.File) {
+		err := fits.Close()
+		if err != nil {
+			log.Fatalf("ReadCloser failure: %s", err)
+		}
+	}(fits)
+
+	// Header
+	header := fits.HDU(0).Header()
+	data := new(HeaderData)
+	// Query header for keywords
+	data.RA = FITS.HeaderQuery("RA", header).(string)
+	data.DEC = FITS.HeaderQuery("DEC", header).(string)
+	data.MJD = FITS.HeaderQuery("MJD-OBS", header).(float64)
+	data.Radius = FITS.HeaderQuery("RADIUS", header).(float64)
+	data.ExposureTime = FITS.HeaderQuery("EXPTIME", header).(float64)
+
+	return data, nil
+}
