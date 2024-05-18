@@ -1,4 +1,4 @@
-# Telescope v0.2.4
+# Telescope v0.3.0
 
 Go wrapper around the astrometry API and image processing tools. Heavily focused around the FITS file format.
 
@@ -56,6 +56,7 @@ headerData := GetHeaderData("file_to_read.fits")
 ```go
 type HeaderData struct {
     // Coordinate
+	ObsID string
     RA  string
     DEC string
     MJD float64
