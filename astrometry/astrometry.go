@@ -15,12 +15,10 @@ import (
 // Client
 
 type Client struct {
-	apiKey      string
-	baseURL     string
-	SessionKey  string
-	submissions map[string]int
-	finished    map[string]int
-	httpClient  *http.Client
+	apiKey     string
+	baseURL    string
+	SessionKey string
+	httpClient *http.Client
 }
 
 // Client factory functions
@@ -32,8 +30,6 @@ func NewAstrometryClient(apiKey string) *Client {
 		httpClient: &http.Client{
 			Timeout: time.Minute,
 		},
-		submissions: make(map[string]int),
-		finished:    make(map[string]int),
 	}
 }
 
@@ -44,8 +40,6 @@ func NewClient(baseURL, apiKey string) *Client {
 		httpClient: &http.Client{
 			Timeout: time.Minute,
 		},
-		submissions: make(map[string]int),
-		finished:    make(map[string]int),
 	}
 }
 
@@ -160,21 +154,16 @@ func (c *Client) UploadFile(file string) (int, error) {
 		return c.UploadFile(file)
 	}
 
-	// If successful, add submission id to client list
-	c.addSubmission(file, resp.SubID)
 	// Return submission id
 	return resp.SubID, nil
 }
 
 // Public methods that combine multiple calls
 
-func (c *Client) GetPartialReview(file string) (*PartialReview, error) {
-
-	subID := c.getSubmissionID(file)
+func (c *Client) GetPartialReview(subID int) (*PartialReview, error) {
 
 	var partialReview = PartialReview{
 		ID:       subID,
-		FileName: file,
 		Finished: false,
 		Relevant: true,
 	}
@@ -220,12 +209,7 @@ func (c *Client) GetPartialReview(file string) (*PartialReview, error) {
 
 // Private utility
 
-func (c *Client) checkSubmission(file string) (*SubmissionStatusResponse, error) {
-	// Check if submission is listed
-	subID := c.getSubmissionID(file)
-	if subID == 0 {
-		return nil, errors.New("submission not in client submission/finished list")
-	}
+func (c *Client) checkSubmission(subID int) (*SubmissionStatusResponse, error) {
 
 	// Create request
 	options := SubmissionStatusOptions(c.baseURL, subID)
@@ -240,57 +224,7 @@ func (c *Client) checkSubmission(file string) (*SubmissionStatusResponse, error)
 		return nil, err
 	}
 
-	// Check if submission has finished
-	if len(resp.JobCalibrations) > 0 {
-		c.removeSubmission(file)
-		c.addFinished(file, subID)
-	}
-
 	return &resp, nil
-}
-
-// Client utility functions, boilerplate getters and setters
-
-func (c *Client) UpdateAllSubmissions() error {
-	for file := range c.CurrentSubmissions() {
-		if _, err := c.checkSubmission(file); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *Client) CurrentSubmissions() map[string]int {
-	return c.submissions
-}
-
-func (c *Client) FinishedSubmissions() map[string]int {
-	return c.finished
-}
-
-func (c *Client) getSubmissionID(fileName string) int {
-	var subID int
-	subID = c.submissions[fileName]
-	if subID == 0 {
-		subID = c.finished[fileName]
-	}
-	return subID
-}
-
-func (c *Client) addSubmission(fileName string, subID int) {
-	c.submissions[fileName] = subID
-}
-
-func (c *Client) removeSubmission(fileName string) {
-	delete(c.submissions, fileName)
-}
-
-func (c *Client) addFinished(fileName string, subID int) {
-	c.finished[fileName] = subID
-}
-
-func (c *Client) removeFinished(fileName string) {
-	delete(c.finished, fileName)
 }
 
 // Structs
@@ -298,7 +232,6 @@ func (c *Client) removeFinished(fileName string) {
 type PartialReview struct {
 	// Overview
 	ID       int
-	FileName string
 	Finished bool
 	Relevant bool
 	// Tagged objects in field
