@@ -111,9 +111,10 @@ func ConvertFITS(inputPath, outputPath string) error {
 
 type HeaderData struct {
 	// Coordinate
-	RA  string
-	DEC string
-	MJD float64
+	ObsID string
+	RA    string
+	DEC   string
+	MJD   float64
 	// Image data
 	Radius       float64
 	ExposureTime float64
@@ -143,6 +144,7 @@ func GetHeaderData(fitsFile string) (*HeaderData, error) {
 	header := fits.HDU(0).Header()
 	data := new(HeaderData)
 	// Query header for keywords
+	data.ObsID = HeaderQuery("OBSID", header).(string)
 	data.RA = HeaderQuery("RA", header).(string)
 	data.DEC = HeaderQuery("DEC", header).(string)
 	data.MJD = HeaderQuery("MJD-OBS", header).(float64)
